@@ -41,8 +41,8 @@ HEADERS = {
 }
 
 
-def api(method, path, data=None, binary=False, extra=None):
-    url = API + path
+def api(method, path, data=None, binary=False, extra=None, base=None):
+    url = (base or API) + path
     body = None
     hdr = dict(HEADERS)
     if data is not None:
@@ -140,12 +140,26 @@ def main():
         "draft": False,
         "prerelease": False,
     })
-    if code not in (201, 200):
+    if code in (201, 200):
+        rid = resp.get("id")
+        upload_url = resp.get("upload_url")
+        print("✓ Release 已创建, id =", rid)
+    elif code == 422:
+        # 已存在同名 Release，按 tag 取回以复用上传地址
+        code2, resp2 = api("GET", f"/repos/{USER}/{REPO}/releases/tags/v{VERSION}")
+        if code2 == 200:
+            rid = resp2.get("id")
+            upload_url = resp2.get("upload_url")
+            print("· Release 已存在, 复用 id =", rid)
+        else:
+            print("✗ 获取已有 Release 失败:", code2, resp2)
+            sys.exit(1)
+    else:
         print("✗ 创建 Release 失败:", code, resp)
         sys.exit(1)
-    rid = resp.get("id")
-    print("✓ Release 已创建, id =", rid)
 
+    # 附件上传必须用独立上传域名（uploads.github.com），即 Release 的 upload_url
+    up_base = (upload_url or "").split("{")[0]
     dist = os.path.join(ROOT, "dist")
     for fn in os.listdir(dist):
         if not fn.endswith(".zip"):
@@ -154,9 +168,8 @@ def main():
         with open(path, "rb") as f:
             data = f.read()
         code, resp = api(
-            "POST",
-            f"/repos/{USER}/{REPO}/releases/{rid}/assets?name={fn}",
-            data=data, binary=True,
+            "POST", "", data=data, binary=True,
+            base=up_base + "?name=" + fn,
         )
         if code in (201, 200):
             print("  ✓ 已上传附件:", fn)
