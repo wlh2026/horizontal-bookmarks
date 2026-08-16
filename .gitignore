@@ -1,0 +1,11 @@
+# 构建临时目录
+build/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
