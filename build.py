@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-build.py — 打包横向收藏夹扩展为 Edge / Chrome 发行包。
+build.py — 打包横向收藏夹扩展为 Edge / Chrome 发行包（zip + crx3）。
 
-两种包均为 Manifest V3，核心代码完全一致：
+两种变体均为 Manifest V3，核心代码完全一致：
   - chrome 包：标准 MV3 清单
-  - edge   包：在标准清单基础上追加 browser_specific_settings.edge（Edge 商店标识，Chrome 会忽略）
+  - edge   包：在标准清单基础上追加 browser_specific_settings.edge
 
-二者都可在 Edge 与 Chrome 中“加载已解压缩的扩展程序”使用。
+输出格式：
+  - *.zip    — 可解压后“加载已解压缩的扩展程序”
+  - *.crx    — 可直接拖入浏览器安装（需开启开发者模式）
+
 用法：python build.py
 """
+import hashlib
+import io
 import json
 import os
 import shutil
+import struct
 import zipfile
+
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DIST = os.path.join(ROOT, "dist")
 BUILD = os.path.join(ROOT, "build")
+KEY_FILE = os.path.join(ROOT, ".crx-key.pem")  # 签名密钥持久化（保持同一 extension ID）
 
-# 需要打进发行包的文件（相对 ROOT）
 INCLUDE = [
     "manifest.json",
     "bg.js",
@@ -30,6 +39,85 @@ INCLUDE = [
 VERSION = "7.2.0"
 
 
+# ---------- 密钥管理 ----------
+def get_or_create_key():
+    """返回 RSA 私钥（首次自动生成并持久化到 .crx-key.pem）。"""
+    if os.path.exists(KEY_FILE):
+        with open(KEY_FILE, "rb") as f:
+            return serialization.load_pem_private_key(f.read(), password=None)
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    with open(KEY_FILE, "wb") as f:
+        f.write(pem)
+    print("  已生成新密钥:", KEY_FILE)
+    return key
+
+
+def get_crx_id(public_key_bytes):
+    """CRX ID = base16(sha256(pubkey)[:16])"""
+    raw = hashlib.sha256(public_key_bytes).digest()[:16]
+    return raw.hex()
+
+
+def make_crx3(zip_data, private_key):
+    """将 zip 字节签名为 CRX3 格式，返回完整 crx 字节。"""
+    pub_der = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    signature = private_key.sign(
+        zip_data,
+        padding.PKCS1v15(),
+        hashes.SHA256(),
+    )
+    crx_id_raw = hashlib.sha256(pub_der).digest()[:16]
+
+    # Protobuf header (手动编码，避免额外依赖)
+    def varint(field_num, wire_type, value):
+        tag = (field_num << 3) | wire_type
+        buf = bytearray()
+        while True:
+            byte = tag & 0x7F
+            tag >>= 7
+            if tag:
+                buf.append(byte | 0x80)
+            else:
+                buf.append(byte)
+                break
+        for b in value or []:
+            while True:
+                bb = b & 0x7F
+                b >>= 7
+                if b:
+                    buf.append(bb | 0x80)
+                else:
+                    buf.append(bb)
+                    break
+        return bytes(buf)
+
+    header = bytearray()
+    # field 1 (wire 2) = signature
+    header += varint(1, 2, signature)
+    # field 2 (wire 2) = public key
+    header += varint(2, 2, pub_der)
+    # field 3 (wire 2) = crx id
+    header += varint(3, 2, crx_id_raw)
+
+    header_bytes = bytes(header)
+    crx = bytearray()
+    crx += b"Cr24"                          # magic
+    crx += struct.pack("<I", 3)              # version = 3
+    crx += struct.pack("<I", len(header_bytes))  # header size
+    crx += header_bytes                      # protobuf header
+    crx += zip_data                           # zip body
+    return bytes(crx)
+
+
+# ---------- 清单与文件复制 ----------
 def read_manifest():
     with open(os.path.join(ROOT, "manifest.json"), "r", encoding="utf-8") as f:
         return json.load(f)
@@ -39,10 +127,7 @@ def write_manifest_variant(folder, edge=False):
     m = read_manifest()
     if edge:
         m["browser_specific_settings"] = {
-            "edge": {
-                "vendor": "bjb",
-                "protocol_handler": {}
-            }
+            "edge": {"vendor": "bjb", "protocol_handler": {}}
         }
     with open(os.path.join(folder, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(m, f, ensure_ascii=False, indent=2)
@@ -50,54 +135,69 @@ def write_manifest_variant(folder, edge=False):
 
 
 def stage_variant(edge):
-    """把 INCLUDE 文件复制到 build/<variant>/ 并写入对应清单，返回目录路径。"""
     variant = "edge" if edge else "chrome"
     dst = os.path.join(BUILD, variant)
     if os.path.isdir(dst):
         shutil.rmtree(dst)
     os.makedirs(dst, exist_ok=True)
-
     for rel in INCLUDE:
         if rel == "manifest.json":
-            continue  # 单独写入（含变体差异）
+            continue
         src = os.path.join(ROOT, rel)
         tgt = os.path.join(dst, rel)
         os.makedirs(os.path.dirname(tgt), exist_ok=True)
         shutil.copy2(src, tgt)
-
     write_manifest_variant(dst, edge=edge)
     return dst
 
 
-def zip_dir(src_dir, zip_path):
-    if os.path.exists(zip_path):
-        os.remove(zip_path)
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+def zip_dir_to_bytes(src_dir):
+    """将目录打包为 zip 并返回字节。"""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for dirpath, _, files in os.walk(src_dir):
             for fn in files:
                 full = os.path.join(dirpath, fn)
                 arc = os.path.relpath(full, src_dir)
                 z.write(full, arc)
-    print("  ->", os.path.relpath(zip_path, ROOT),
-          f"({os.path.getsize(zip_path)} bytes)")
+    return buf.getvalue()
 
 
+def write_file(path, data):
+    with open(path, "wb") as f:
+        f.write(data)
+    print("  ->", os.path.relpath(path, ROOT), f"({len(data)} bytes)")
+
+
+# ---------- 主流程 ----------
 def main():
     if os.path.isdir(BUILD):
         shutil.rmtree(BUILD)
     os.makedirs(DIST, exist_ok=True)
 
-    print("Building Edge package...")
-    edge_dir = stage_variant(True)
-    zip_dir(edge_dir, os.path.join(DIST, f"horizontal-bookmarks-edge-v{VERSION}.zip"))
+    private_key = get_or_create_key()
+    pub_der = private_key.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    ext_id = get_crx_id(pub_der)
+    print("Extension ID:", ext_id)
 
-    print("Building Chrome package...")
-    chrome_dir = stage_variant(False)
-    zip_dir(chrome_dir, os.path.join(DIST, f"horizontal-bookmarks-chrome-v{VERSION}.zip"))
+    for edge in [True, False]:
+        label = "Edge" if edge else "Chrome"
+        print(f"\nBuilding {label} package...")
+        src_dir = stage_variant(edge)
 
-    # 清理临时 build 目录，保留 dist 成品
+        # ZIP
+        zip_data = zip_dir_to_bytes(src_dir)
+        name = f"horizontal-bookmarks-{'edge' if edge else 'chrome'}-v{VERSION}"
+        write_file(os.path.join(DIST, f"{name}.zip"), zip_data)
+
+        # CRX3
+        crx_data = make_crx3(zip_data, private_key)
+        write_file(os.path.join(DIST, f"{name}.crx"), crx_data)
+
     shutil.rmtree(BUILD)
-    print("Done. Output in:", os.path.relpath(DIST, ROOT))
+    print("\nDone. Output in:", os.path.relpath(DIST, ROOT))
 
 
 if __name__ == "__main__":

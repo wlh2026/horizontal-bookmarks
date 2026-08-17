@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "横向收藏夹 · 仿360书签面板",
+  "name": "horizontal-bookmarks",
   "version": "7.2.0",
   "description": "点击工具栏图标，在独立窗口中展开多列横向书签面板（仿360收藏夹）。窗口可自由拖拽边缘调整大小，不再受弹窗尺寸上限限制。",
   "permissions": ["bookmarks", "windows", "storage"],
   "action": {
-    "default_title": "横向收藏夹",
+    "default_title": "horizontal-bookmarks",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

@@ -1,6 +1,9 @@
 # 构建临时目录
 build/
 
+# CRX 签名私钥（不可泄露）
+.crx-key.pem
+
 # Python 缓存
 __pycache__/
 *.pyc

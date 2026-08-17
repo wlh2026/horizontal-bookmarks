@@ -28,19 +28,19 @@ jobs:
       - name: 打包 Edge / Chrome 发行包
         run: python build.py
 
-      - name: 上传构建产物（每次 push）
+      - name: 上传构建产物（每次 push，含 zip + crx）
         uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: dist/*.zip
+          path: dist/*.{zip,crx}
           if-no-files-found: error
 
-      - name: 打标签时创建 Release 并上传附件
+      - name: 打标签时创建 Release 并上传附件（zip + crx）
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${GITHUB_REF_NAME}"
-          gh release create "$VERSION" dist/*.zip \
+          gh release create "$VERSION" dist/*.{zip,crx} \
             --title "$VERSION" \
-            --notes "横向收藏夹扩展 $VERSION：Edge / Chrome 双格式发行包。"
+            --notes "horizontal-bookmarks v$VERSION：Edge / Chrome 发行包（zip 可解压加载，crx 可直接拖入安装）。"
