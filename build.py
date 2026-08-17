@@ -64,21 +64,35 @@ def get_crx_id(public_key_bytes):
 
 
 def make_crx3(zip_data, private_key):
-    """将 zip 字节签名为 CRX3 格式，返回完整 crx 字节。"""
+    """
+    将 zip 字节签名为 CRX3 格式，返回完整 crx 字节。
+
+    官方规范（chromium/src/components/crx_file/crx3.proto）：
+
+    CrxFileHeader:
+      field  2: repeated AsymmetricKeyProof sha256_with_rsa   { public_key, signature }
+      field  3: repeated AsymmetricKeyProof sha256_with_ecdsa  { public_key, signature }
+      field  4: optional bytes verified_contents
+      field 10000: optional bytes signed_header_data           ← 序列化的 SignedData
+
+    AsymmetricKeyProof:
+      field 1: bytes public_key
+      field 2: bytes signature
+
+    SignedData:
+      field 1: bytes crx_id   (恰好 16 字节)
+
+    签名覆盖范围：
+      "CRX3 SignedData\x00" + uint32_le(signed_header_len) + signed_header_data + zip
+    """
     pub_der = private_key.public_key().public_bytes(
         encoding=serialization.Encoding.DER,
         format=serialization.PublicFormat.SubjectPublicKeyInfo,
     )
-    signature = private_key.sign(
-        zip_data,
-        padding.PKCS1v15(),
-        hashes.SHA256(),
-    )
     crx_id_raw = hashlib.sha256(pub_der).digest()[:16]
 
-    # Protobuf header (手动编码，避免额外依赖)
-    def _encode_varint(n):
-        """Encode an integer as a protobuf varint."""
+    # ---- Protobuf 编码工具 ----
+    def _varint(n):
         buf = bytearray()
         while True:
             b = n & 0x7F
@@ -91,24 +105,44 @@ def make_crx3(zip_data, private_key):
         return bytes(buf)
 
     def _field(field_num, raw_bytes):
-        """Encode a length-delimited (wire type 2) protobuf field."""
-        return _encode_varint((field_num << 3) | 2) + _encode_varint(len(raw_bytes)) + raw_bytes
+        """Encode a length-delimited (wire type 2) field."""
+        return _varint((field_num << 3) | 2) + _varint(len(raw_bytes)) + raw_bytes
 
+    # ---- 1. 构建 SignedData { crx_id } → 得到 signed_header_data ----
+    signed_header_data = _field(1, crx_id_raw)
+
+    # ---- 2. 计算签名（RSA-SHA256，覆盖 signed_header + zip）----
+    sign_payload = (
+        b"CRX3 SignedData\x00"
+        + struct.pack("<I", len(signed_header_data))
+        + signed_header_data
+        + zip_data
+    )
+    signature = private_key.sign(
+        sign_payload,
+        padding.PKCS1v15(),
+        hashes.SHA256(),
+    )
+
+    # ---- 3. 构建 AsymmetricKeyProof { public_key, signature } ----
+    proof = bytearray()
+    proof += _field(1, pub_der)       # public_key
+    proof += _field(2, signature)     # signature
+    proof_bytes = bytes(proof)
+
+    # ---- 4. 构建外层 CrxFileHeader ----
     header = bytearray()
-    # field 1 (wire 2) = signature
-    header += _field(1, signature)
-    # field 2 (wire 2) = public key
-    header += _field(2, pub_der)
-    # field 3 (wire 2) = crx id
-    header += _field(3, crx_id_raw)
-
+    header += _field(2, proof_bytes)              # sha256_with_rsa (field 2)
+    header += _field(10000, signed_header_data)   # signed_header_data (field 10000)
     header_bytes = bytes(header)
+
+    # ---- 5. 拼装完整 CRX3 文件 ----
     crx = bytearray()
     crx += b"Cr24"                          # magic
     crx += struct.pack("<I", 3)              # version = 3
     crx += struct.pack("<I", len(header_bytes))  # header size
-    crx += header_bytes                      # protobuf header
-    crx += zip_data                           # zip body
+    crx += header_bytes                      # CrxFileHeader protobuf
+    crx += zip_data                           # ZIP archive
     return bytes(crx)
 
 
