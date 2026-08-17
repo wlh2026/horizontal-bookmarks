@@ -77,35 +77,30 @@ def make_crx3(zip_data, private_key):
     crx_id_raw = hashlib.sha256(pub_der).digest()[:16]
 
     # Protobuf header (手动编码，避免额外依赖)
-    def varint(field_num, wire_type, value):
-        tag = (field_num << 3) | wire_type
+    def _encode_varint(n):
+        """Encode an integer as a protobuf varint."""
         buf = bytearray()
         while True:
-            byte = tag & 0x7F
-            tag >>= 7
-            if tag:
-                buf.append(byte | 0x80)
+            b = n & 0x7F
+            n >>= 7
+            if n:
+                buf.append(b | 0x80)
             else:
-                buf.append(byte)
+                buf.append(b)
                 break
-        for b in value or []:
-            while True:
-                bb = b & 0x7F
-                b >>= 7
-                if b:
-                    buf.append(bb | 0x80)
-                else:
-                    buf.append(bb)
-                    break
         return bytes(buf)
+
+    def _field(field_num, raw_bytes):
+        """Encode a length-delimited (wire type 2) protobuf field."""
+        return _encode_varint((field_num << 3) | 2) + _encode_varint(len(raw_bytes)) + raw_bytes
 
     header = bytearray()
     # field 1 (wire 2) = signature
-    header += varint(1, 2, signature)
+    header += _field(1, signature)
     # field 2 (wire 2) = public key
-    header += varint(2, 2, pub_der)
+    header += _field(2, pub_der)
     # field 3 (wire 2) = crx id
-    header += varint(3, 2, crx_id_raw)
+    header += _field(3, crx_id_raw)
 
     header_bytes = bytes(header)
     crx = bytearray()
