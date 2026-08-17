@@ -1,0 +1,9 @@
+Windows Registry Editor Version 5.00
+
+; 将 horizontal-bookmarks 扩展加入 Edge 放行列表，避免“外来扩展不安全”拦截。
+; 写入 HKEY_CURRENT_USER，无需管理员权限。双击本文件导入后重启 Edge 即可。
+; 注意：设置 ExtensionInstallAllowlist 后，Edge 仅允许列表内的扩展；
+;       若你还要用其它扩展，请同样把它们的 ID 加到该键下（名称 2、3…）。
+
+[HKEY_CURRENT_USER\Software\Policies\Microsoft\Edge\ExtensionInstallAllowlist]
+"1"="b15b748eda62cf0da6ef1c3be63c2266"

@@ -13,21 +13,42 @@
 - 顶部支持书签**搜索**
 - 零依赖、纯原生 JS，占用资源极小
 
-## 安装（加载已解压缩的扩展）
+## 安装
 
-两种发行包（`dist/horizontal-bookmarks-chrome-vX.Y.Z.zip` 与 `dist/horizontal-bookmarks-edge-vX.Y.Z.zip`）内容一致，均可装入 Edge 与 Chrome。任选其一解压即可。
+发行包两种格式（`dist/horizontal-bookmarks-{chrome,edge}-vX.Y.Z.{zip,crx}`），内容一致，均可装入 Edge 与 Chrome。
 
-### Microsoft Edge
-1. 打开 `edge://extensions`
-2. 打开左下角 **“开发人员模式”**
-3. 点击 **“加载已解压缩的扩展”**，选择解压后的文件夹
-4. 若提示授予 `windows` / `storage` 权限，请允许；点击工具栏图标即可使用
+### 方式一：加载已解压缩（推荐，无任何警告）
+> 自签名 `.crx` 在 Edge 中会触发“外来扩展不安全”拦截，**开发 / 自用请优先用这种方式**，干净无警告。
 
-### Google Chrome
-1. 打开 `chrome://extensions`
-2. 打开右上角 **“开发者模式”**
-3. 点击 **“加载已解压缩的扩展程序”**，选择解压后的文件夹
-4. 点击工具栏拼图图标 → 钉住“横向收藏夹”，点击即可使用
+1. 解压 `*.zip`（解压后即为扩展文件夹）
+2. 打开 `edge://extensions`（Edge）或 `chrome://extensions`（Chrome）
+3. 打开 **“开发人员模式”**
+4. 点击 **“加载已解压缩的扩展” / “加载已解压缩的扩展程序”**，选择解压后的文件夹
+5. 若提示授予 `windows` / `storage` 权限，请允许；点击工具栏图标即可使用
+
+### 方式二：直接拖入 `.crx` 安装
+> ⚠️ 仅适用于自测。**Edge 会拦截非 Microsoft Store 签名的 `.crx`**，提示“外来扩展不安全，要求删除”。
+> 若坚持用 `.crx`，需先按下方【排错】把本扩展 ID 加入放行列表，否则会被强制删除。
+
+1. 打开 `edge://extensions`，开启“开发人员模式”
+2. 将 `*.crx` 直接拖入浏览器窗口
+3. 若提示拦截 → 见下方【排错】添加放行策略后重试
+
+## 排错：Edge 提示“外来扩展不安全，要求删除”
+
+**原因**：Edge 只信任 Microsoft Store 官方签名的扩展；自签名（自己用 `build.py` 生成的）`.crx` 一律被判定为“非商店来源 / 不安全”，因此弹出删除警告。这不是打包错误，无法通过重新打包消除。
+
+**解决方案（任选其一）**
+
+**方案 A（最干净，推荐）**：改用【方式一】加载解压缩文件夹，完全不触发该警告。
+
+**方案 B（保留 `.crx`，本机放行）**：把本扩展 ID 加入 Edge 组策略放行列表，Edge 便不再拦截。
+- 本扩展固定 ID：`b15b748eda62cf0da6ef1c3be63c2266`
+- 仓库内已提供 `edge-allowlist.reg`，**双击导入**即可（写入 `HKCU`，无需管理员）；导入后重启 Edge。
+- 若想手动操作：注册表 `HKEY_CURRENT_USER\Software\Policies\Microsoft\Edge\ExtensionInstallAllowlist` 下新建字符串值，名称 `1`，数据填上面的 ID。
+- 注意：一旦设置 `ExtensionInstallAllowlist`，**只允许列表内的扩展**，其它扩展需一并加入，否则会被禁装。
+
+**方案 C（给他人分发，彻底无警告）**：将扩展提交到 **Microsoft Edge Add-ons 商店** 完成官方签名。只有通过商店签名的 `.crx` 才不会警告。这是面向最终用户的唯一正规途径。
 
 ## 重新加载
 修改代码后，回到扩展管理页点击对应扩展的 **↻ 重新加载**（或快捷键 `Ctrl+R`）。
