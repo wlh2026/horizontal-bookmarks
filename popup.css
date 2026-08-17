@@ -27,12 +27,13 @@ body{
   border-radius:6px; background:var(--panel); color:var(--text);
   outline:none; font-size:inherit; }
 #search:focus{ border-color:var(--accent); background:#fff; }
-#clear,#btn-settings{ flex-shrink:0; width:32px; height:32px; border:none;
-  border-radius:6px; background:transparent; cursor:pointer; font-size:16px;
+#clear,#btn-settings,#btn-lang{ flex-shrink:0; height:32px; border:none;
+  border-radius:6px; background:transparent; cursor:pointer;
   display:flex; align-items:center; justify-content:center; }
-#clear{ color:var(--muted); display:none; }
-#clear:hover,#btn-settings:hover{ background:var(--hover); }
-#btn-settings{ font-size:18px; }
+#clear{ width:32px; color:var(--muted); font-size:16px; display:none; }
+#btn-lang{ padding:0 9px; font-size:12px; font-weight:700; color:var(--muted); }
+#clear:hover,#btn-settings:hover,#btn-lang:hover{ background:var(--hover); }
+#btn-settings{ width:32px; font-size:18px; }
 
 /* ---- 面包屑导航 ---- */
 .breadcrumb{ display:flex; align-items:center; gap:2px; padding:6px 14px;

@@ -8,9 +8,10 @@
 <body>
   <div class="header">
     <svg class="logo" viewBox="0 0 24 24" width="18" height="18"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" fill="#2563eb"/></svg>
-    <input type="text" id="search" placeholder="搜索书签（标题或网址）…" autocomplete="off" spellcheck="false" />
-    <button id="clear" title="清空">×</button>
-    <button id="btn-settings" title="布局设置">⚙️</button>
+    <input type="text" id="search" data-i18n-ph="search.placeholder" data-i18n-title="search.title" placeholder="搜索书签（标题或网址）…" autocomplete="off" spellcheck="false" />
+    <button id="clear" data-i18n-title="clear.title" title="清空">×</button>
+    <button id="btn-lang" title="切换语言">中</button>
+    <button id="btn-settings" data-i18n-title="settings.title" title="布局设置">⚙️</button>
   </div>
 
   <div class="main" id="main"></div>
@@ -21,30 +22,30 @@
   <div class="settings-overlay" id="settings-overlay">
     <div class="settings-panel" id="settings-panel">
       <div class="settings-header">
-        <span>⚙️ 布局设置</span>
+        <span data-i18n="settings.heading">⚙️ 布局设置</span>
         <button id="settings-close">✕</button>
       </div>
       <div class="settings-body">
-        <div class="setting-hint">面板是独立窗口：可直接拖拽边缘调整大小，或用右上角按钮最大化。下方参数用于调节面板内部的布局密度。</div>
+        <div class="setting-hint" data-i18n="settings.hint">面板是独立窗口：可直接拖拽边缘调整大小，或用右上角按钮最大化。下方参数用于调节面板内部的布局密度。</div>
         <div class="setting-row">
-          <label>导航列宽 <span class="val" id="val-nav">100</span>px</label>
+          <label><span class="lbl" data-i18n="set.navW">导航列宽</span> <span class="val" id="val-nav">100</span>px</label>
           <input type="range" id="set-nav-w" min="70" max="220" step="10" value="100" />
         </div>
         <div class="setting-row">
-          <label>行高 <span class="val" id="val-row">46</span>px</label>
+          <label><span class="lbl" data-i18n="set.rowH">行高</span> <span class="val" id="val-row">46</span>px</label>
           <input type="range" id="set-row-h" min="34" max="64" step="2" value="46" />
         </div>
         <div class="setting-row">
-          <label>书签列数 <span class="val" id="val-cols">3</span></label>
+          <label><span class="lbl" data-i18n="set.bmCols">书签列数</span> <span class="val" id="val-cols">3</span></label>
           <input type="range" id="set-bm-cols" min="1" max="6" step="1" value="3" />
         </div>
         <div class="setting-row">
-          <label>字号 <span class="val" id="val-font">13</span>px</label>
+          <label><span class="lbl" data-i18n="set.font">字号</span> <span class="val" id="val-font">13</span>px</label>
           <input type="range" id="set-font" min="11" max="18" step="1" value="13" />
         </div>
         <div class="setting-actions">
-          <button id="set-reset" class="btn btn-secondary">恢复默认</button>
-          <button id="set-apply" class="btn btn-primary">应用并关闭</button>
+          <button id="set-reset" class="btn btn-secondary" data-i18n="set.reset">恢复默认</button>
+          <button id="set-apply" class="btn btn-primary" data-i18n="set.apply">应用并关闭</button>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "horizontal-bookmarks",
-  "version": "7.2.0",
+  "version": "7.3.0",
   "description": "点击工具栏图标，在独立窗口中展开多列横向书签面板（仿360收藏夹）。窗口可自由拖拽边缘调整大小，不再受弹窗尺寸上限限制。",
   "permissions": ["bookmarks", "windows", "storage"],
   "action": {

@@ -8,7 +8,7 @@
 
 ## 一、材料清单（Checklist）
 
-- [x] **扩展包（.zip）** —— `dist/horizontal-bookmarks-store-v7.2.0.zip`（已生成，仅含扩展本体，无 `update_url`、无 Edge 专用块，符合商店要求）
+- [x] **扩展包（.zip）** —— `dist/horizontal-bookmarks-store-v7.3.0.zip`（已生成，仅含扩展本体，无 `update_url`、无 Edge 专用块，符合商店要求）
 - [x] **128×128 图标** —— `icons/icon128.png`（已校验尺寸）
 - [x] **隐私政策** —— `PRIVACY.md`（可托管到 GitHub Pages，见第三节）
 - [ ] **截图 1–10 张（1280×800 推荐，单张 ≤ 1 MB）** —— 见第四节拍摄指南
@@ -126,7 +126,7 @@ Productivity
 
 1. **注册开发者账号**：访问 https://partner.microsoft.com/dashboard/microsoftedge ，“注册”为 Edge 扩展开发者（按页面提示，历史上个人开发者有过一次性注册费，请以当前官方页面为准）。
 2. 进入 **Edge Add-ons 开发人员仪表板** → **“新建扩展”**。
-3. **上传包**：选择 `dist/horizontal-bookmarks-store-v7.2.0.zip`。
+3. **上传包**：选择 `dist/horizontal-bookmarks-store-v7.3.0.zip`。
 4. **填写Listing**：复制第二节的显示名称、简短描述、详细描述、类别、语言、价格。
 5. **上传资源**：128×128 图标 + 截图（第四节）；可选上传宣传图。
 6. **隐私声明**：按第三节选择“不收集数据”，如需可填隐私政策 URL。
@@ -151,4 +151,4 @@ Productivity
 |------|------|
 | `STORE-SUBMISSION.md` | 本指南（含可直接复制的提交信息） |
 | `PRIVACY.md` | 隐私政策（中/英） |
-| `dist/horizontal-bookmarks-store-v7.2.0.zip` | 商店提交用干净扩展包 |
+| `dist/horizontal-bookmarks-store-v7.3.0.zip` | 商店提交用干净扩展包 |

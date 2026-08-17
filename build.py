@@ -36,7 +36,7 @@ INCLUDE = [
     "icons/icon16.png", "icons/icon48.png", "icons/icon128.png",
 ]
 
-VERSION = "7.2.0"
+VERSION = None  # 运行时从 manifest.json 读取
 
 
 # ---------- 密钥管理 ----------
@@ -201,6 +201,20 @@ def write_file(path, data):
     print("  ->", os.path.relpath(path, ROOT), f"({len(data)} bytes)")
 
 
+def build_store_zip():
+    """干净商店包：仅扩展本体，使用原始 manifest（无 edge 专用块、无 update_url）。"""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for rel in INCLUDE:
+            full = os.path.join(ROOT, rel)
+            if rel == "manifest.json":
+                m = read_manifest()  # 原始清单，保持干净
+                z.writestr("manifest.json", json.dumps(m, ensure_ascii=False, indent=2) + "\n")
+            else:
+                z.write(full, rel)
+    return buf.getvalue()
+
+
 # ---------- 主流程 ----------
 def main():
     if os.path.isdir(BUILD):
@@ -217,6 +231,9 @@ def main():
     ext_id = get_crx_id(pub_der)
     print("Extension ID:", ext_id)
 
+    global VERSION
+    VERSION = read_manifest().get("version", "0.0.0")
+
     for edge in [True, False]:
         label = "Edge" if edge else "Chrome"
         print(f"\nBuilding {label} package...")
@@ -230,6 +247,10 @@ def main():
         # CRX3
         crx_data = make_crx3(zip_data, private_key)
         write_file(os.path.join(DIST, f"{name}.crx"), crx_data)
+
+    # 商店用干净 zip（无 edge 块、无 update_url）
+    store_name = f"horizontal-bookmarks-store-v{VERSION}"
+    write_file(os.path.join(DIST, f"{store_name}.zip"), build_store_zip())
 
     try:
         shutil.rmtree(BUILD)

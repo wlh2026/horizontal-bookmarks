@@ -11,6 +11,98 @@ document.title = 'horizontal-bookmarks';
 
 const $ = id => document.getElementById(id);
 
+// ---------- 多语言（中 / 英）----------
+// 静态文案用 data-i18n* 标记在 HTML 中，动态文案用 t('key', ...args) 取。
+// 带参数的条目写成函数 (...args) => string。
+const I18N = {
+  zh: {
+    'search.placeholder': '搜索书签（标题或网址）…',
+    'search.title': '搜索书签',
+    'clear.title': '清空',
+    'settings.title': '布局设置',
+    'settings.heading': '⚙️ 布局设置',
+    'settings.hint': '面板是独立窗口：可直接拖拽边缘调整大小，或用右上角按钮最大化。下方参数用于调节面板内部的布局密度。',
+    'set.navW': '导航列宽',
+    'set.rowH': '行高',
+    'set.bmCols': '书签列数',
+    'set.font': '字号',
+    'set.reset': '恢复默认',
+    'set.apply': '应用并关闭',
+    'nav.empty': '(无子文件夹)',
+    'item.untitled': '未命名',
+    'home': '🏠 收藏夹栏',
+    'folder': '文件夹',
+    'bm.empty': '此文件夹下没有书签',
+    'nav.tip': '← 点击左侧文件夹查看书签',
+    'status.noData': '未找到书签数据（收藏夹可能为空）',
+    'status.noApi': '错误：当前环境不支持书签 API',
+    'status.summary': n => `共 ${n} 个书签 · 点击文件夹切换 · ⚙️ 可调布局`,
+    'status.readFail': msg => '读取书签失败：' + msg,
+    'search.noMatch': q => `"${q}" — 未找到匹配的书签`,
+    'search.count': n => `找到 ${n} 个匹配 · 共 ${countAll()} 个书签`
+  },
+  en: {
+    'search.placeholder': 'Search bookmarks (title or URL)…',
+    'search.title': 'Search bookmarks',
+    'clear.title': 'Clear',
+    'settings.title': 'Layout settings',
+    'settings.heading': '⚙️ Layout Settings',
+    'settings.hint': 'The panel is a standalone window: drag its edges to resize, or use the maximize button at the top-right. The options below adjust the internal layout density.',
+    'set.navW': 'Nav width',
+    'set.rowH': 'Row height',
+    'set.bmCols': 'Columns',
+    'set.font': 'Font size',
+    'set.reset': 'Reset',
+    'set.apply': 'Apply & Close',
+    'nav.empty': '(no subfolders)',
+    'item.untitled': 'Untitled',
+    'home': '🏠 Bookmarks',
+    'folder': 'Folder',
+    'bm.empty': 'No bookmarks in this folder',
+    'nav.tip': '← Click a folder on the left to view bookmarks',
+    'status.noData': 'No bookmark data found (your bookmarks may be empty)',
+    'status.noApi': 'Error: bookmark API not supported in this environment',
+    'status.summary': n => `Total ${n} bookmarks · Click folders to switch · ⚙️ layout`,
+    'status.readFail': msg => 'Failed to read bookmarks: ' + msg,
+    'search.noMatch': q => `"${q}" — No matching bookmarks found`,
+    'search.count': n => `Found ${n} match · Total ${countAll()} bookmarks`
+  }
+};
+
+let lang = 'zh';
+
+function t(key, ...args) {
+  const entry = I18N[lang] && I18N[lang][key];
+  if (typeof entry === 'function') return entry(...args);
+  if (entry != null) return entry;
+  // 回退到中文，避免显示空白
+  const fb = I18N.zh[key];
+  if (typeof fb === 'function') return fb(...args);
+  return fb != null ? fb : key;
+}
+
+// 把 [data-i18n*] 标记的文本应用到当前语言
+function applyI18n(root) {
+  root = root || document;
+  root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  root.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  root.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
+}
+
+// 更新语言切换按钮：显示「将要切换到的语言」
+function setLangBtn() {
+  const btn = $('btn-lang');
+  if (!btn) return;
+  btn.textContent = lang === 'zh' ? 'EN' : '中文';
+  btn.title = lang === 'zh' ? 'Switch to English' : '切换到中文';
+}
+
+function applyLang() {
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en-US';
+  applyI18n();
+  setLangBtn();
+}
+
 // ---------- 默认配置 ----------
 // 注意：面板运行在独立窗口中，外框尺寸由窗口本身决定（可自由拖拽缩放），
 // 因此不再需要 width/height 参数。以下为面板内部布局密度参数。
@@ -94,13 +186,13 @@ function buildNavCol(title, folders) {
   col.appendChild(head);
   if (!folders.length) {
     const e = document.createElement('div');
-    e.className = 'empty-item'; e.textContent = '(无子文件夹)';
+    e.className = 'empty-item'; e.textContent = t('nav.empty');
     col.appendChild(e); return col;
   }
   folders.forEach(f => {
     const el = document.createElement('div');
     el.className = 'item folder';
-    el.innerHTML = `<span class="name">${esc(f.title || '未命名')}</span><span class="arrow">›</span>`;
+    el.innerHTML = `<span class="name">${esc(f.title || t('item.untitled'))}</span><span class="arrow">›</span>`;
     el.addEventListener('click', () => {
       if (currentNode) navHistory.push(currentNode);
       currentNode = f;
@@ -118,7 +210,7 @@ function buildBreadcrumb() {
   // 首页按钮
   const homeBtn = document.createElement('span');
   homeBtn.className = 'crumb home';
-  homeBtn.textContent = '🏠 收藏夹栏';
+  homeBtn.textContent = t('home');
   homeBtn.addEventListener('click', () => {
     if (currentNode) navHistory.push(currentNode);
     currentNode = null;
@@ -128,14 +220,14 @@ function buildBreadcrumb() {
   // 历史路径
   navHistory.forEach((node, i) => {
     const sep = document.createElement('span'); sep.className = 'crumb-sep'; sep.textContent = '›'; bar.appendChild(sep);
-    const crumb = document.createElement('span'); crumb.className = 'crumb'; crumb.textContent = node.title || '文件夹';
+    const crumb = document.createElement('span'); crumb.className = 'crumb'; crumb.textContent = node.title || t('folder');
     crumb.addEventListener('click', () => { currentNode = node; navHistory = navHistory.slice(0, i); render(); });
     bar.appendChild(crumb);
   });
   // 当前位置
   if (currentNode) {
     const sep = document.createElement('span'); sep.className = 'crumb-sep'; sep.textContent = '›'; bar.appendChild(sep);
-    const cur = document.createElement('span'); cur.className = 'crumb current'; cur.textContent = currentNode.title || '文件夹';
+    const cur = document.createElement('span'); cur.className = 'crumb current'; cur.textContent = currentNode.title || t('folder');
     bar.appendChild(cur);
   }
   return bar;
@@ -151,13 +243,13 @@ function buildBookmarkGrid(title, bookmarks) {
   const grid = document.createElement('div');
   grid.className = 'bm-grid';
   if (!bookmarks.length) {
-    const e = document.createElement('div'); e.className = 'empty-item'; e.textContent = '此文件夹下没有书签';
+    const e = document.createElement('div'); e.className = 'empty-item'; e.textContent = t('bm.empty');
     grid.appendChild(e);
   } else {
     bookmarks.forEach(node => {
       const el = document.createElement('div');
       el.className = 'item link';
-      const name = node.title || node.url || '未命名';
+      const name = node.title || node.url || t('item.untitled');
       el.innerHTML = `${avatar(node)}<span class="name">${esc(name)}</span>`;
       const url = node.url || '';
       el.title = name + (url ? '\n' + url : '');
@@ -180,7 +272,7 @@ function render() {
 
   // 决定显示哪个节点的数据
   let displayNode = currentNode ? currentNode : (rootContainers[0] || null);
-  if (!displayNode) { statusEl.textContent = '未找到书签数据（收藏夹可能为空）'; return; }
+  if (!displayNode) { statusEl.textContent = t('status.noData'); return; }
 
   const contentRow = document.createElement('div');
   contentRow.className = 'content-row';
@@ -202,13 +294,13 @@ function render() {
     if (folders.length > 0) {
       const tip = document.createElement('div');
       tip.className = 'empty-item nav-tip';
-      tip.textContent = '← 点击左侧文件夹查看书签';
+      tip.textContent = t('nav.tip');
       contentRow.appendChild(tip);
     }
   }
 
   mainEl.appendChild(contentRow);
-  statusEl.textContent = `共 ${countAll()} 个书签 · 点击文件夹切换 · ⚙️ 可调布局`;
+  statusEl.textContent = t('status.summary', countAll());
 }
 
 // ---------- 搜索 ----------
@@ -237,7 +329,7 @@ function doSearch(q) {
   list.className = 'search-list';
   if (!results.length) {
     const e = document.createElement('div'); e.className = 'empty-item';
-    e.textContent = `"${esc(q)}" — 未找到匹配的书签`; list.appendChild(e);
+    e.textContent = t('search.noMatch', q); list.appendChild(e);
   } else {
     results.forEach(({ node, path }) => {
       const r = document.createElement('div');
@@ -249,13 +341,13 @@ function doSearch(q) {
     });
   }
   mainEl.appendChild(list);
-  statusEl.textContent = `找到 ${results.length} 个匹配 · 共 ${countAll()} 个书签`;
+  statusEl.textContent = t('search.count', results.length);
 }
 
 // ---------- 初始化 ----------
 function init(tree) {
   if (chrome.runtime?.lastError) {
-    $('status').textContent = '读取书签失败：' + chrome.runtime.lastError.message;
+    $('status').textContent = t('status.readFail', chrome.runtime.lastError.message);
     return;
   }
   rootContainers = tree?.[0]?.children || [];
@@ -292,6 +384,14 @@ function init(tree) {
     saveSettings(); applySettings(); overlayEl.classList.remove('open'); render();
   });
 
+  // 语言切换
+  $('btn-lang').addEventListener('click', () => {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    try { chrome.storage.local.set({ bmLang: lang }); } catch (e) {}
+    applyLang();
+    render();
+  });
+
   // 搜索
   const searchEl = $('search'), clearEl = $('clear');
   searchEl.addEventListener('input', () => doSearch(searchEl.value));
@@ -324,14 +424,18 @@ function trackWindowSize() {
 // 启动：先加载持久化设置，再读取书签
 function start() {
   trackWindowSize();
-  chrome.storage.local.get(['bmCfg'], (res) => {
+  chrome.storage.local.get(['bmCfg', 'bmLang'], (res) => {
     if (res.bmCfg) cfg = { ...DEFAULTS, ...res.bmCfg };
+    // 语言：优先用记忆值，否则按浏览器语言默认（中文环境→中文）
+    if (res.bmLang === 'en' || res.bmLang === 'zh') lang = res.bmLang;
+    else lang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+    applyLang();
     applySettings();
     if (chrome && chrome.bookmarks && chrome.bookmarks.getTree) {
       chrome.bookmarks.getTree(init);
     } else {
       const s = $('status');
-      if (s) s.textContent = '错误：当前环境不支持书签 API';
+      if (s) s.textContent = t('status.noApi');
     }
   });
 }
