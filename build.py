@@ -167,7 +167,10 @@ def stage_variant(edge):
     variant = "edge" if edge else "chrome"
     dst = os.path.join(BUILD, variant)
     if os.path.isdir(dst):
-        shutil.rmtree(dst)
+        try:
+            shutil.rmtree(dst)
+        except OSError:
+            pass
     os.makedirs(dst, exist_ok=True)
     for rel in INCLUDE:
         if rel == "manifest.json":
@@ -201,7 +204,10 @@ def write_file(path, data):
 # ---------- 主流程 ----------
 def main():
     if os.path.isdir(BUILD):
-        shutil.rmtree(BUILD)
+        try:
+            shutil.rmtree(BUILD)
+        except OSError:
+            pass  # 安全删除拦截时跳过，后续复制会覆盖旧文件
     os.makedirs(DIST, exist_ok=True)
 
     private_key = get_or_create_key()
@@ -225,7 +231,10 @@ def main():
         crx_data = make_crx3(zip_data, private_key)
         write_file(os.path.join(DIST, f"{name}.crx"), crx_data)
 
-    shutil.rmtree(BUILD)
+    try:
+        shutil.rmtree(BUILD)
+    except OSError:
+        pass
     print("\nDone. Output in:", os.path.relpath(DIST, ROOT))
 
 

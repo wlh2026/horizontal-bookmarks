@@ -6,6 +6,9 @@
  * 永远只有一列导航 + 一列书签，无级联多列。
  */
 
+// 兜底：确保独立窗口标题栏显示短名称，而非完整 URL
+document.title = 'horizontal-bookmarks';
+
 const $ = id => document.getElementById(id);
 
 // ---------- 默认配置 ----------
